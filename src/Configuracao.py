@@ -12,12 +12,14 @@ class Configuracao:
     LblMessage = None
     txtNumeroCorrespondecias = None
     CmbCompactarImagens = None
+    txtNumeroCaracteristicas = None
 
     Iniciar = False
     WebCamIndex = -1
     IPCamera = ""
     Algoritimo = -1
     NumeroMinimoCorrespondencias = 50
+    NumeroCaracteristicas = 5000
     ResizeImagens = False
 
     def __init__(self, ):
@@ -75,6 +77,12 @@ class Configuracao:
         self.txtNumeroCorrespondecias.insert(0, "50")
 
         rowIndex += 1
+        label = ttk.Label(frame, text="Número Caracteristicas:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
+        self.txtNumeroCaracteristicas =  Entry(frame)
+        self.txtNumeroCaracteristicas.grid(row=rowIndex, column=1, padx=5, pady=5, sticky="W")
+        self.txtNumeroCaracteristicas.insert(0, "5000")
+
+        rowIndex += 1
         label = ttk.Label(frame, text="Compactar Imagens:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
         self.CmbCompactarImagens = ttk.Combobox(frame, width=35)
         self.CmbCompactarImagens.grid(row=rowIndex, column=1, padx=5, pady=5, sticky="W")
@@ -118,7 +126,19 @@ class Configuracao:
         if (len(self.txtNumeroCorrespondecias .get()) == 0):
             self.LblMessage['text'] = "Número de correspondências não preenchido"
             return
+        if (not str(self.txtNumeroCorrespondecias.get()).isnumeric() ):
+            self.LblMessage['text'] = "Número de correspondências não é um valor válido"
+            return
         self.NumeroMinimoCorrespondencias = int(self.txtNumeroCorrespondecias .get())
+
+        if (len(self.txtNumeroCaracteristicas .get()) == 0):
+            self.LblMessage['text'] = "Número de características não preenchido"
+            return
+        if (not str(self.txtNumeroCaracteristicas.get()).isnumeric()):
+            self.LblMessage['text'] = "Número de características não é um valor válido"
+            return
+        self.NumeroCaracteristicas = int(self.txtNumeroCaracteristicas .get())
+        
 
         if (self.CmbCompactarImagens.current() == 0):
             ResizeImagens = True
