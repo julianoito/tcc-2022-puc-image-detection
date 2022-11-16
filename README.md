@@ -18,4 +18,6 @@ Executar os comandos abaixo para instalar os pacotes utilizados
 ```
 pip install opencv-python
 pip install pandas
+pip install Pillow
+pip install 
 ```

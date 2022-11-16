@@ -1,15 +1,21 @@
+from contextlib import nullcontext
 import cv2
 import os
 import pandas as pd
+import numpy as np
+from Configuracao import Configuracao
 
 class ProdutoDataSet:
+    #global produtosJogosDf
     produtosJogosDf = None
+    imageFeatures = 5000 #15000
+    Config = None
 
-    def __init__(self, ):
+    def __init__(self, config):
         listaNomeJogos = [
             "01_elden_ring",
             "02_uncharted_lost_legacy",
-            "03_god_of_war.png",
+            "03_god_of_war",
             "04_resident_evil_origins",
             "05_demons_souls",
             "06_street_fighter_5",
@@ -36,25 +42,98 @@ class ProdutoDataSet:
             "27_fifa_15",
             "28_fifa_14"
         ]
-        global produtosJogosDf
-        produtosJogosDf = pd.DataFrame([], columns=["codigo", "nome", "foto_frente", "foto_verso"])
+
+        self.Config = config
+        #global produtosJogosDf
+        self.produtosJogosDf = pd.DataFrame([], columns=["codigo", "nome", "foto_frente", "foto_verso", "keypoints_frente", "descriptor_frente", "keypoints_verso", "descriptor_verso"])
 
         caminhoBase = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Imagens"))
 
+        orb = cv2.ORB_create(nfeatures=self.imageFeatures)
         for nomeJogo in listaNomeJogos:
             partesNome = nomeJogo.split('_')
             indice = int(partesNome[0])
             nomeTratado = ""
+            kpFrente = None
+            kpVerso = None
+            descFrente = None
+            descVerso = None
+
             for indiceNome in range(1, len(partesNome)):
                 nomeTratado += ("" if len(nomeTratado) == 0 else " ") + partesNome[indiceNome][0].upper() + partesNome[indiceNome][1:]
 
             if os.path.exists(os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_front.png")):
                 imgFrente = cv2.imread(   os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_front.png") )
+                if (self.Config.ResizeImagens):
+                    imgFrente = cv2.resize(imgFrente, (400,400), interpolation = cv2.INTER_AREA)
+                kpFrente, descFrente = orb.detectAndCompute(imgFrente, None)
 
             if os.path.exists(os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_back.png")):
                 imgVerso = cv2.imread(   os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_back.png") )
+                if (self.Config.ResizeImagens):
+                    imgVerso = cv2.resize(imgVerso, (400,400), interpolation = cv2.INTER_AREA)
+                kpVerso, descVerso = orb.detectAndCompute(imgVerso, None)
 
-            produtosJogosDf.loc[produtosJogosDf.shape[0]] = [indice, nomeTratado, imgFrente, imgVerso]
+            self.produtosJogosDf.loc[self.produtosJogosDf.shape[0]] = [indice, nomeTratado, imgFrente, imgVerso, kpFrente, descFrente, kpVerso, descVerso]
 
+    def ProcurarImagem(self, imagem):
+        orb = cv2.ORB_create(nfeatures=self.imageFeatures)
 
-DataSetProdutos = ProdutoDataSet()
+        #if (self.Config.ResizeImagens):
+            #imagem = cv2.resize(imagem, (500,500), interpolation = cv2.INTER_AREA)
+
+        bruteforce = cv2.BFMatcher()
+        kp1, desc1 = orb.detectAndCompute(imagem, None)
+        
+        matchCount = 0
+        product = []
+        closeMatches = []
+        kpSeleconado = None
+        productImage = np.zeros([100,100,3],dtype=np.uint8)
+        
+        for imgIndex in range(0, self.produtosJogosDf.shape[0]):
+            productImageFront = self.produtosJogosDf.loc[imgIndex]["foto_frente"]
+            productImageBack = self.produtosJogosDf.loc[imgIndex]["foto_verso"]
+            descComparacaoFrente = self.produtosJogosDf.loc[imgIndex]["descriptor_frente"]
+            descComparacaoVerso = self.produtosJogosDf.loc[imgIndex]["descriptor_verso"]
+            kpAux = self.produtosJogosDf.loc[imgIndex]["keypoints_frente"]
+            
+            matches = None
+            if (not descComparacaoFrente is None):
+                if (self.Config.Algoritimo == 0):
+                    matches = self.CompararImagemBFM(orb, bruteforce, descComparacaoFrente, desc1)
+
+                if (not matches is None and len(matches)> self.Config.NumeroMinimoCorrespondencias  and len(matches) > len(closeMatches)):
+                    closeMatches = matches
+                    kpSeleconado = kpAux
+                    product = self.produtosJogosDf.loc[imgIndex]
+                    productImage = productImageFront
+                
+            matches = None
+            if (not descComparacaoVerso is None):
+                if (self.Config.Algoritimo == 0):
+                    matches = self.CompararImagemBFM(orb, bruteforce, descComparacaoVerso, desc1)
+
+                if (not matches is None and len(matches)> self.Config.NumeroMinimoCorrespondencias  and len(matches) > len(closeMatches)):
+                    closeMatches = matches
+                    kpSeleconado = kpAux
+                    product = self.produtosJogosDf.loc[imgIndex]
+                    productImage = productImageBack
+
+        #imagem = cv2.resize(imagem, (300,300), interpolation = cv2.INTER_AREA)
+        imagemComparacao = np.zeros([300, 600,3],dtype=np.uint8)
+        imagemComparacaoAux = cv2.drawMatchesKnn(imagem, kp1, productImage, kpSeleconado, closeMatches, None, flags=2)
+        imagemComparacaoAux = cv2.resize(imagemComparacaoAux, (300,300), interpolation = cv2.INTER_AREA)
+        imagemComparacao[0:imagemComparacaoAux.shape[0], 0:imagemComparacaoAux.shape[1]] = imagemComparacaoAux
+
+        return product, imagemComparacao, len(closeMatches)
+
+    def CompararImagemBFM(self, orb, bruteforce, descComparacao, descBase):
+        matches = bruteforce.knnMatch(descBase, descComparacao, k=2)
+        
+        good = []
+        for m,n in matches:
+            if m.distance < 0.75*n.distance:
+                good.append([m])
+
+        return good
