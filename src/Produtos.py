@@ -94,21 +94,21 @@ class ProdutoDataSet:
         orb = cv2.ORB_create(nfeatures=self.imageFeatures)
         kp1, desc1 = orb.detectAndCompute(imagem, None)
 
+        if (desc1 is None):
+            return [], np.zeros([300, 600,3],dtype=np.uint8), 0
+
         if (self.Config.Algoritimo == 0):
             # Inicialização Brute Force Matcher
             bruteforce = cv2.BFMatcher()
 
 
         elif (self.Config.Algoritimo == 1):
-            # Inicialização do Flann
-            FLANN_INDEX_KDTREE = 0
-            index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
             FLANN_INDEX_LSH = 6
             index_params= dict(algorithm = FLANN_INDEX_LSH, 
                    table_number = 6, # 12
                    key_size = 12,     # 20
                    multi_probe_level = 1) #2
-            search_params = dict(checks=5)
+            search_params = dict(checks=50)
 
             flann = cv2.FlannBasedMatcher(index_params,search_params)
 
@@ -175,11 +175,14 @@ class ProdutoDataSet:
         return good
 
     def CompararImagemFlann(self, flann, descComparacao, descBase):
-        matches = flann.knnMatch(descComparacao,descBase,k=2)
-
         good = []
-        for m,n in matches:
-            if m.distance < 0.7*n.distance:
-                good.append([m])
+        try:
+            matches = flann.knnMatch(descComparacao,descBase,k=2)
+        
+            for m,n in matches:
+                if m.distance < 0.7*n.distance:
+                    good.append([m])
+        except:
+            good = []
 
         return good
