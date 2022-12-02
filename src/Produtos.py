@@ -50,7 +50,7 @@ class ProdutoDataSet:
 
         caminhoBase = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Imagens"))
 
-        orb = cv2.ORB_create(nfeatures=self.imageFeatures)
+        orb = cv2.ORB_create()#nfeatures=self.imageFeatures)
         for nomeJogo in listaNomeJogos:
             partesNome = nomeJogo.split('_')
             indice = int(partesNome[0])
@@ -69,16 +69,18 @@ class ProdutoDataSet:
 
             if os.path.exists(os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_front.png")):
                 imgFrente = cv2.imread(   os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_front.png") )
+                imgFrenteGray = cv2.cvtColor(imgFrente, cv2.COLOR_BGR2GRAY)
                 if (self.Config.ResizeImagens):
-                    imgFrente = cv2.resize(imgFrente, (400,400), interpolation = cv2.INTER_AREA)
+                    imgFrenteGray = cv2.resize(imgFrenteGray, (400,400), interpolation = cv2.INTER_AREA)
 
                 #imagemAux = cv2.cvtColor(imgVerso,cv2.COLOR_BGR2GRAY)
-                kpFrenteOrb, descFrenteOrb = orb.detectAndCompute(imgFrente, None)
+                kpFrenteOrb, descFrenteOrb = orb.detectAndCompute(imgFrenteGray, None)
 
             if os.path.exists(os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_back.png")):
                 imgVerso = cv2.imread(   os.path.join(caminhoBase, "Jogos\\" + nomeJogo + "_back.png") )
+                imgVersoGray = cv2.cvtColor(imgVerso, cv2.COLOR_BGR2GRAY)
                 if (self.Config.ResizeImagens):
-                    imgVerso = cv2.resize(imgVerso, (400,400), interpolation = cv2.INTER_AREA)
+                    imgVersoGray = cv2.resize(imgVersoGray, (400,400), interpolation = cv2.INTER_AREA)
 
                 #imagemAux = cv2.cvtColor(imgVerso,cv2.COLOR_BGR2GRAY)
                 kpVersoOrb, descVersoOrb = orb.detectAndCompute(imgVerso, None)
@@ -91,11 +93,11 @@ class ProdutoDataSet:
         kp1 = None
         desc1 = None
 
-        orb = cv2.ORB_create(nfeatures=self.imageFeatures)
+        orb = cv2.ORB_create()#nfeatures=self.imageFeatures*/)
         kp1, desc1 = orb.detectAndCompute(imagem, None)
 
         if (desc1 is None):
-            return [], np.zeros([300, 600,3],dtype=np.uint8), 0
+            return [], np.zeros([300, 600,3],dtype=np.uint8), 0, 0
 
         if (self.Config.Algoritimo == 0):
             # Inicialização Brute Force Matcher
@@ -116,6 +118,7 @@ class ProdutoDataSet:
         closeMatches = []
         kpSeleconado = None
         productImage = np.zeros([100,100,3],dtype=np.uint8)
+        maxDescriptions = 0
         
         for imgIndex in range(0, self.produtosJogosDf.shape[0]):
             productImageFront = self.produtosJogosDf.loc[imgIndex]["foto_frente"]
@@ -138,6 +141,7 @@ class ProdutoDataSet:
                     kpSeleconado = kpFrente
                     product = self.produtosJogosDf.loc[imgIndex]
                     productImage = productImageFront
+                    maxDescriptions = max(len(desc1), len(descComparacaoFrente))
                 
             matches = None
             if (not descComparacaoVerso is None):
@@ -151,18 +155,18 @@ class ProdutoDataSet:
                     kpSeleconado = kpVerso
                     product = self.produtosJogosDf.loc[imgIndex]
                     productImage = productImageBack
+                    maxDescriptions = max(len(desc1), len(descComparacaoVerso))
 
         #imagem = cv2.resize(imagem, (300,300), interpolation = cv2.INTER_AREA)
-        imagemComparacao = np.zeros([300, 600,3],dtype=np.uint8)
+        #imagemComparacao = np.zeros([300, 300,3],dtype=np.uint8)
         try:
-            imagemComparacaoAux = cv2.drawMatchesKnn(imagem, kp1, productImage, kpSeleconado, closeMatches, None, flags=2)
+            imagemComparacao = cv2.drawMatchesKnn(imagem, kp1, productImage, kpSeleconado, closeMatches, None, flags=2)
         except:
-            imagemComparacaoAux = productImage
+            imagemComparacao = productImage
 
-        imagemComparacaoAux = cv2.resize(imagemComparacaoAux, (300,300), interpolation = cv2.INTER_AREA)
-        imagemComparacao[0:imagemComparacaoAux.shape[0], 0:imagemComparacaoAux.shape[1]] = imagemComparacaoAux
+        imagemComparacao = cv2.resize(imagemComparacao, (200,200), interpolation = cv2.INTER_AREA)
 
-        return product, imagemComparacao, len(closeMatches)
+        return product, imagemComparacao, len(closeMatches), maxDescriptions
 
     def CompararImagemBFM(self, bruteforce, descComparacao, descBase):
         matches = bruteforce.knnMatch(descBase, descComparacao, k=2)

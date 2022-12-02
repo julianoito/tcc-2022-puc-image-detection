@@ -19,7 +19,7 @@ class Configuracao:
     IPCamera = ""
     Algoritimo = -1
     NumeroMinimoCorrespondencias = 50
-    NumeroCaracteristicas = 5000
+    NumeroCaracteristicas = 4000
     ResizeImagens = False
 
     def __init__(self, ):
@@ -27,17 +27,23 @@ class Configuracao:
         self.janela = Tk()
         self.janela.title("Detecção de produtos")
         self.janela.resizable(width=False, height=False)
+        self.janela.geometry("450x300")
+        self.janela.eval('tk::PlaceWindow . center')
 
-        frame = Frame(self.janela, width=500, height=260)
-        frame.grid(row=0, column=0, padx=10, pady=5)
-        
-        label = ttk.Label(frame, text="WebCam:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
+        label = ttk.Label(self.janela, text="Iniciando fontes de vídeo... ", font=('Arial', 16)).pack(side="top")
+        label = ttk.Label(self.janela, text="", font=('Arial', 16))
+        label.pack(side="top")
+        self.janela.update()
+
+
         #label.pack()
 
         webcamIndex = 0
         arrWebCams = []
         while (True):
+            label['text'] = "Verificando fonte de vídeo " + str(webcamIndex)
             webcam = cv2.VideoCapture(webcamIndex)
+            self.janela.update()
 
             if not webcam.read()[0]:
                 break
@@ -47,7 +53,17 @@ class Configuracao:
             webcam.release()
 
             webcamIndex += 1
+        arrWebCams.append("Webcam 0")
         arrWebCams.append("IP / arquivo de vídeo")
+
+        #Remove mensagens iniciais
+        for label in self.janela.winfo_children():
+            label.destroy()
+
+        frame = Frame(self.janela, width=500, height=260)
+        frame.grid(row=0, column=0, padx=10, pady=5)
+
+        label = ttk.Label(frame, text="WebCam:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
 
         self.CmbWebcam = ttk.Combobox(frame, width=35)
         self.CmbWebcam.grid(row=rowIndex, column=1, padx=5, pady=5, sticky="W")
@@ -74,13 +90,13 @@ class Configuracao:
         label = ttk.Label(frame, text="Número Correspondências:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
         self.txtNumeroCorrespondecias =  Entry(frame)
         self.txtNumeroCorrespondecias.grid(row=rowIndex, column=1, padx=5, pady=5, sticky="W")
-        self.txtNumeroCorrespondecias.insert(0, "50")
+        self.txtNumeroCorrespondecias.insert(0, "15")
 
         rowIndex += 1
         label = ttk.Label(frame, text="Número Caracteristicas:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
         self.txtNumeroCaracteristicas =  Entry(frame)
         self.txtNumeroCaracteristicas.grid(row=rowIndex, column=1, padx=5, pady=5, sticky="W")
-        self.txtNumeroCaracteristicas.insert(0, "5000")
+        self.txtNumeroCaracteristicas.insert(0, "500")
 
         rowIndex += 1
         label = ttk.Label(frame, text="Compactar Imagens:").grid(row=rowIndex, column=0, padx=5, pady=5, sticky="E")
@@ -99,8 +115,8 @@ class Configuracao:
         btnIniciar = ttk.Button(self.janela, text = "Iniciar", command=lambda: Configuracao.Iniciar_Click(self))
         btnIniciar.grid(row=3, column=0, padx=5, pady=5)
 
-        self.janela.geometry("450x300")
-        self.janela.eval('tk::PlaceWindow . center')
+        #self.janela.geometry("450x300")
+        #self.janela.eval('tk::PlaceWindow . center')
         self.janela.mainloop()
 
     def Iniciar_Click(self, ):
